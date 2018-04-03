@@ -16,6 +16,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
+import dhbwka.wwi.vertsys.pubsub.fahrzeug.Vehicle;
+import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
 /**
  * Hauptklasse unseres kleinen Progrämmchens.
@@ -50,13 +55,18 @@ public class Main {
         System.out.println();
         int index = Integer.parseInt(Utils.askInput("Zu fahrende Strecke", "0"));
         
-        // TODO: Methode parseItnFile() unten ausprogrammieren
+
         List<WGS84> waypoints = parseItnFile(new File(workdir, waypointFiles[index]));
 
         // Adresse des MQTT-Brokers abfragen
         String mqttAddress = Utils.askInput("MQTT-Broker", Utils.MQTT_BROKER_ADDRESS);
+        MqttConnectOptions connOpts = new MqttConnectOptions();
+        //  Sicherstellen, dass bei einem Verbindungsabbruch eine sog.
+        StatusMessage smlost = new StatusMessage();
+        smlost.type = StatusType.CONNECTION_LOST;
+        smlost.vehicleId = vehicleId;
+        connOpts.setWill(Utils.MQTT_TOPIC_NAME, smlost.toJson(), 0, true);
 
-        // TODO: Sicherstellen, dass bei einem Verbindungsabbruch eine sog.
         // LastWill-Nachricht gesendet wird, die auf den Verbindungsabbruch
         // hinweist. Die Nachricht soll eine "StatusMessage" sein, bei der das
         // Feld "type" auf "StatusType.CONNECTION_LOST" gesetzt ist.
@@ -64,9 +74,28 @@ public class Main {
         // Die Nachricht muss dem MqttConnectOptions-Objekt übergeben werden
         // und soll an das Topic Utils.MQTT_TOPIC_NAME gesendet werden.
         
-        // TODO: Verbindung zum MQTT-Broker herstellen.
+        // Verbindung zum MQTT-Broker herstellen.
 
-        // TODO: Statusmeldung mit "type" = "StatusType.VEHICLE_READY" senden.
+        MqttClient client = new MqttClient(mqttAddress, "verteilteSysteme01", new MemoryPersistence());
+
+        connOpts.setCleanSession(true);
+        System.out.println("Conntecting to broker: "+mqttAddress);
+        client.connect(connOpts);
+        System.out.println("Connected");
+
+        //  Statusmeldung mit "type" = "StatusType.VEHICLE_READY" senden.
+        StatusMessage status = new StatusMessage();
+        status.type=StatusType.VEHICLE_READY;
+        status.vehicleId=vehicleId;
+
+
+        MqttMessage message = new MqttMessage();
+        message.setQos(0);
+        message.setPayload(status.toJson());
+
+        client.publish(Utils.MQTT_TOPIC_NAME, message);
+        System.out.println("Message published");
+
         // Die Nachricht soll soll an das Topic Utils.MQTT_TOPIC_NAME gesendet
         // werden.
         
@@ -128,8 +157,6 @@ public class Main {
         } catch(Exception e) {
             System.out.println(e);
         }
-
-        // TODO: Übergebene Datei parsen und Liste "waypoints" damit füllen
 
         return waypoints;
     }
