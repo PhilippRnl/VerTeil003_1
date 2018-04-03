@@ -9,10 +9,13 @@
  */
 package dhbwka.wwi.vertsys.pubsub.fahrzeug;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * Hauptklasse unseres kleinen Progrämmchens.
@@ -108,6 +111,23 @@ public class Main {
      */
     public static List<WGS84> parseItnFile(File file) throws IOException {
         List<WGS84> waypoints = new ArrayList<>();
+
+        BufferedReader br = new BufferedReader(new FileReader(file));
+        try {
+            StringBuilder sb = new StringBuilder();
+            String line = br.readLine();
+
+            while (line != null) {
+                String [] teile = line.split(Pattern.quote("|"));
+                int longi = Integer.parseInt(teile[0]);
+                int lati = Integer.parseInt(teile[1]);
+                WGS84 wgs84 = new WGS84(lati, longi);
+
+                waypoints.add(wgs84);
+            }
+        } catch(Exception e) {
+            System.out.println(e);
+        }
 
         // TODO: Übergebene Datei parsen und Liste "waypoints" damit füllen
 
