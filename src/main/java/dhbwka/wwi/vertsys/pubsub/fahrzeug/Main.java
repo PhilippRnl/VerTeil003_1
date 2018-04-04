@@ -85,7 +85,7 @@ public class Main {
 
             // Verbindung zum MQTT-Broker herstellen.
 
-            MqttClient sampleClient = new MqttClient(mqttAddress, "verteilteSysteme01", new MemoryPersistence());
+            MqttClient sampleClient = new MqttClient(mqttAddress, clientId,persistence);
 
             connOpts.setCleanSession(true);
             System.out.println("Conntecting to broker: " + mqttAddress);
