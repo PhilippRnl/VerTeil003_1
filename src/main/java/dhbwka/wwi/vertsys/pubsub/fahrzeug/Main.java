@@ -9,18 +9,20 @@
  */
 package dhbwka.wwi.vertsys.pubsub.fahrzeug;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
+
+import java.util.Scanner;
 
 /**
  * Hauptklasse unseres kleinen Progrämmchens.
@@ -32,7 +34,11 @@ import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
  */
 public class Main {
 
-    public static List<WGS84> main(String[] args) throws Exception {
+    public static void main(String[] args) throws Exception {
+        int qos             = 0;
+        String clientId     = "vehicleProducer"+ (Math.random() * Math.random());
+        MemoryPersistence persistence = new MemoryPersistence();
+
         // Fahrzeug-ID abfragen
         String vehicleId = Utils.askInput("Beliebige Fahrzeug-ID", "postauto");
 
@@ -59,7 +65,7 @@ public class Main {
         List<WGS84> waypoints;
         try {
 
-            waypoints = parseItnFile(new File(workdir, waypointFiles[index]));
+            waypoints = parseIntFile(new File(workdir, waypointFiles[index]));
 
             // Adresse des MQTT-Brokers abfragen
             String mqttAddress = Utils.askInput("MQTT-Broker", Utils.MQTT_BROKER_ADDRESS);
@@ -79,11 +85,11 @@ public class Main {
 
             // Verbindung zum MQTT-Broker herstellen.
 
-            MqttClient client = new MqttClient(mqttAddress, "verteilteSysteme01", new MemoryPersistence());
+            MqttClient sampleClient = new MqttClient(mqttAddress, "verteilteSysteme01", new MemoryPersistence());
 
             connOpts.setCleanSession(true);
             System.out.println("Conntecting to broker: " + mqttAddress);
-            client.connect(connOpts);
+            sampleClient.connect(connOpts);
             System.out.println("Connected");
 
             //  Statusmeldung mit "type" = "StatusType.VEHICLE_READY" senden.
@@ -96,7 +102,7 @@ public class Main {
             message.setQos(0);
             message.setPayload(status.toJson());
 
-            client.publish(Utils.MQTT_TOPIC_NAME, message);
+            sampleClient.publish(Utils.MQTT_TOPIC_NAME, message);
             System.out.println("Message published");
 
             // Die Nachricht soll soll an das Topic Utils.MQTT_TOPIC_NAME gesendet
@@ -107,9 +113,9 @@ public class Main {
             // an das Topic Utils.MQTT_TOPIC_NAME + "/" + vehicleId gesendet werden.
             Vehicle vehicle = new Vehicle(vehicleId, waypoints);
             vehicle.startVehicle();
-            java.util.Timer timer = new java.util.Timer();
+            Timer timer = new Timer();
             System.out.println("Start publishing vehicle data");
-            timer.schedule(new java.util.TimerTask() {
+            timer.schedule(new TimerTask() {
 
                 @Override
                 public void run() {
@@ -137,7 +143,7 @@ public class Main {
             // beenden, falls es kein Daemon-Thread ist.
 
 
-            sampleClient.publish(Utils.MQTT_TOPIC_NAME, new MqttMessage(lastWillMessage.toJson()));
+            sampleClient.publish(Utils.MQTT_TOPIC_NAME, new MqttMessage(smlost.toJson()));
             sampleClient.disconnect();
             System.out.println("Disconnected");
             System.exit(0);
@@ -174,30 +180,30 @@ public class Main {
          *
          * @param file ITN-Datei
          * @return Liste mit Koordinaten
-         * @throws java.io.IOException
+         * @throws IOException
          */
-        public static List<WGS84> parseItnFile(File file) throws IOException {
-            List<WGS84> waypoints = new ArrayList<>();
 
-            BufferedReader br = new BufferedReader(new FileReader(file));
-            try {
-                StringBuilder sb = new StringBuilder();
-                String line = br.readLine();
+return;
+    }
 
-                while (line != null) {
-                    String[] teile = line.split(Pattern.quote("|"));
-                    int longi = Integer.parseInt(teile[0]);
-                    int lati = Integer.parseInt(teile[1]);
-                    WGS84 wgs84 = new WGS84(lati, longi);
-
-                    waypoints.add(wgs84);
-                }
-            } catch (Exception e) {
-                System.out.println(e);
+    private static List<WGS84> parseIntFile(File file) throws IOException {
+        List<WGS84> waypoints = new ArrayList<>();
+        String[] values = {"empty"};
+        int i = 0;
+        try {
+            Scanner input = new Scanner(file);
+            while (input.hasNext()) {
+                //or to process line by line
+                String nextLine = input.nextLine();
+                values = nextLine.split("\\|");
+                if(values.length<2)
+                    System.out.println("Die Zeile hat das falsche Format: "+nextLine);
+                waypoints.add(new WGS84(Double.parseDouble(values[1])/100000,Double.parseDouble(values[0])/100000));
             }
-
-            return waypoints;
+        } catch (NumberFormatException nfE) {
+            System.out.println("Die Variable ist kein Double: " + values[i]);
+            nfE.printStackTrace();
         }
-
+        return waypoints;
     }
 }
